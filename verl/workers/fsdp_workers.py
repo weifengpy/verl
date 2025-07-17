@@ -561,7 +561,6 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
 
     @register(dispatch_mode=Dispatch.ONE_TO_ALL)
     def init_model(self):
-        torch.cuda.memory._record_memory_history(max_entries=10000000)
         from verl.workers.actor import DataParallelPPOActor
 
         # This is used to import external_lib into the huggingface systems
@@ -583,29 +582,24 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
                 fsdp_config = OmegaConf.create()
 
             local_path = copy_to_local(self.config.model.path, use_shm=use_shm)
-            try:
-                (
-                    self.actor_module_fsdp,
-                    self.actor_optimizer,
-                    self.actor_lr_scheduler,
-                    self.actor_model_config,
-                ) = self._build_model_optimizer(
-                    model_path=local_path,
-                    fsdp_config=fsdp_config,
-                    optim_config=optim_config,
-                    override_model_config=override_model_config,
-                    use_remove_padding=use_remove_padding,
-                    use_fused_kernels=use_fused_kernels,
-                    enable_gradient_checkpointing=self.config.model.get("enable_gradient_checkpointing", False),
-                    trust_remote_code=self.config.model.get("trust_remote_code", False),
-                    use_liger=self.config.model.get("use_liger", False),
-                    role="actor",
-                    enable_activation_offload=self.config.model.get("enable_activation_offload", False),
-                )
-            except Exception:
-                torch.cuda.memory._dump_snapshot(f"{self.config.actor.strategy}_rank{torch.distributed.get_rank()}.pkl")
-            torch.cuda.memory._dump_snapshot(f"{self.config.actor.strategy}_rank{torch.distributed.get_rank()}.pkl")
-            torch.distributed.breakpoint()
+            (
+                self.actor_module_fsdp,
+                self.actor_optimizer,
+                self.actor_lr_scheduler,
+                self.actor_model_config,
+            ) = self._build_model_optimizer(
+                model_path=local_path,
+                fsdp_config=fsdp_config,
+                optim_config=optim_config,
+                override_model_config=override_model_config,
+                use_remove_padding=use_remove_padding,
+                use_fused_kernels=use_fused_kernels,
+                enable_gradient_checkpointing=self.config.model.get("enable_gradient_checkpointing", False),
+                trust_remote_code=self.config.model.get("trust_remote_code", False),
+                use_liger=self.config.model.get("use_liger", False),
+                role="actor",
+                enable_activation_offload=self.config.model.get("enable_activation_offload", False),
+            )
 
             # get the original unwrapped module
             if fsdp_version(self.actor_module_fsdp) == 1:
