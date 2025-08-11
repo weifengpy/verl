@@ -279,7 +279,7 @@ class DataParallelPPOActor(BasePPOActor):
 
             return entropy, log_probs
 
-    def _optimizer_step(self):
+    def _optimizer_step(self, batch_idx):
         assert self.config.grad_clip is not None
 
         if isinstance(self.actor_module, FSDP):
@@ -295,6 +295,16 @@ class DataParallelPPOActor(BasePPOActor):
             self.actor_optimizer.zero_grad()
         else:
             self.actor_optimizer.step()
+
+        logger.error(f"weifweif rank: {torch.distributed.get_rank()} {batch_idx=}")
+        # import torch
+        if batch_idx == 0:
+            torch.cuda.memory._dump_snapshot(f"fsdp{2 if isinstance(self.actor_module, FSDPModule) else 1}_memsnap_rank{torch.distributed.get_rank()}.pkl")
+            import time
+            logger.error(f"weifweif rank: {torch.distributed.get_rank()} sleep 60s")
+            time.sleep(30)  # Sleeps for 60 seconds
+            assert False, "memory snapshot dumped"
+        
         return grad_norm
 
     @GPUMemoryLogger(role="dp actor", logger=logger)
@@ -474,7 +484,7 @@ class DataParallelPPOActor(BasePPOActor):
                     )
                     append_to_dict(metrics, micro_batch_metrics)
 
-                grad_norm = self._optimizer_step()
+                grad_norm = self._optimizer_step(batch_idx)
                 mini_batch_metrics = {"actor/grad_norm": grad_norm.detach().item()}
                 append_to_dict(metrics, mini_batch_metrics)
         self.actor_optimizer.zero_grad()

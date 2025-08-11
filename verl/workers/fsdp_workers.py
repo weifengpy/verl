@@ -129,6 +129,9 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
                 timeout=datetime.timedelta(seconds=self.config.get("nccl_timeout", 600)),
                 init_method=os.environ.get("DIST_INIT_METHOD", None),
             )
+        
+        import torch
+        torch.cuda.memory._record_memory_history(max_entries=1000000)
 
         # build device mesh for FSDP
         world_size = torch.distributed.get_world_size()
