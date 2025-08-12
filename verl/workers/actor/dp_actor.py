@@ -294,7 +294,17 @@ class DataParallelPPOActor(BasePPOActor):
             print(f"WARN: rank {torch.distributed.get_rank()} grad_norm is not finite: {grad_norm}")
             self.actor_optimizer.zero_grad()
         else:
-            self.actor_optimizer.step()
+            try:
+                self.actor_optimizer.step()
+            except:
+                logger.error(f"weifweif rank: {torch.distributed.get_rank()} {batch_idx=}")
+                # import torch
+                if batch_idx == 0:
+                    torch.cuda.memory._dump_snapshot(f"fsdp{2 if isinstance(self.actor_module, FSDPModule) else 1}_memsnap_rank{torch.distributed.get_rank()}.pkl")
+                    import time
+                    logger.error(f"weifweif rank: {torch.distributed.get_rank()} sleep 60s")
+                    time.sleep(30)  # Sleeps for 60 seconds
+                    assert False, "memory snapshot dumped"
 
         logger.error(f"weifweif rank: {torch.distributed.get_rank()} {batch_idx=}")
         # import torch
