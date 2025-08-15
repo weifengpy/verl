@@ -34,7 +34,7 @@ from verl import DataProto
 from verl.protocol import all_gather_data_proto
 from verl.third_party.vllm import LLM
 from verl.third_party.vllm import parallel_state as vllm_ps
-from verl.utils.device import get_device_id, get_device_name, get_torch_device
+from verl.utils.device import set_expandable_segments, get_device_id, get_device_name, get_torch_device
 from verl.utils.fsdp_utils import (
     fsdp_version,
     layered_summon_lora_params,
@@ -212,6 +212,10 @@ class FSDPVLLMShardingManager(BaseShardingManager):
                     self.inference_engine.wake_up(tags=["weights"])
                 else:
                     self.inference_engine.wake_up()
+            
+            # vllm need to set _set_allocator_settings to False
+            logger.debug("fsdp vllm sharding_manager _set_allocator_settings to False")
+            set_expandable_segments(False)
 
             # update model params
             self.update_params(params, peft_config=peft_config)
@@ -243,6 +247,10 @@ class FSDPVLLMShardingManager(BaseShardingManager):
 
         # add empty cache after each compute
         get_torch_device().empty_cache()
+
+        # _set_allocator_settings to True is required by fsdp2 to avoid oom
+        logger.debug("fsdp vllm sharding_manager _set_allocator_settings to True")
+        set_expandable_segments(True)
 
         # restore random states
         if self.device_mesh is not None:

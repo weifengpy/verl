@@ -129,6 +129,9 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
                 timeout=datetime.timedelta(seconds=self.config.get("nccl_timeout", 600)),
                 init_method=os.environ.get("DIST_INIT_METHOD", None),
             )
+        
+        import torch
+        torch.cuda.memory._record_memory_history(max_entries=10000)
 
         # build device mesh for FSDP
         world_size = torch.distributed.get_world_size()
@@ -647,8 +650,7 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
                 trust_remote_code=self.config.model.get("trust_remote_code", False)
             )
 
-        import torch
-        torch.cuda.memory._record_memory_history(max_entries=1000000000)
+        
 
         if self._is_ref:
             ref_model_path = self.config.model.path
